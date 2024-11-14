@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>document</title>
+</head>
+<body>
+    <h1 style="text-align:center;">Productos</h1>
+
+    <form id="crearProductoForm">
+        <h2 id="formTitle">Crear Nuevo Producto</h2>
+        <input type="hidden" id="productoId">
+
+        <label for="nombre">Nombre del Producto:</label>
+        <input type="text" id="nombre" name="nombre" required>
+
+        <label for="precio">Precio:</label>
+        <input type="number" id="precio" name="precio" required min="0">
+
+        <button type="submit">Crear Producto</button>
+    </form>
+
+    <table id="productosTable">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Nombre</th>
+                <th>Precio</th>
+                <th>Fecha de Creación</th>
+                <th>Fecha de Actualización</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+
+    <script>
+        async function cargarProductos() {
+            try {
+                const response = await fetch('http://localhost:8080/product');
+                if (!response.ok) {
+                    throw new Error('Error');
+                }
+
+                const productos = await response.json();
+                console.log(productos);
+                const tablaBody = document.querySelector('#productosTable tbody');
+                tablaBody.innerHTML = '';
+
+                productos.forEach(producto => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${producto.id}</td>
+                        <td>${producto.nombre}</td>
+                        <td>${producto.precio}</td>
+                        <td>${new Date(producto.createdAt).toLocaleString()}</td>
+                        <td>${new Date(producto.updatedAt).toLocaleString()}</td>
+                        <td>
+                            <button class="update-btn" onclick="editarProducto(${producto.id})">Actualizar</button>
+                            <button class="delete-btn" onclick="eliminarProducto(${producto.id})">Eliminar</button>
+                        </td>
+                    `;
+                    tablaBody.appendChild(row);
+                });
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+
+        async function crearProducto(event) {
+            event.preventDefault(); 
+
+            const nombre = document.getElementById('nombre').value;
+            const precio = parseFloat(document.getElementById('precio').value);
+
+            if (!nombre|| precio < 0) {
+                alert('llena los campos.');
+                return;
+            }
+
+            try {
+                const nuevoProducto = { nombre, precio };
+
+                const response = await fetch('http://localhost:8080/product', { 
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(nuevoProducto),
+                });
+
+                if (!response.ok) {
+                    throw new Error('Error');
+                }
+
+                document.getElementById('crearProductoForm').reset();
+                cargarProductos();
+                
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Hubo un problema');
+            }
+        }
+
+        async function eliminarProducto(id) {
+            const confirmacion = confirm('¿Seguro?');
+
+            if (!confirmacion) return;
+
+            try {
+                const response = await fetch(`http://localhost:8080/product/${id}`, { 
+                    method: 'DELETE',
+                });
+
+                if (!response.ok) {
+                    throw new Error('Error');
+                }
+
+                cargarProductos();
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Hubo un problema');
+            }
+        }
+
+        async function editarProducto(id) {
+            try {
+                const response = await fetch(`http://localhost:8080/product/${id}`);
+                if (!response.ok) {
+                    throw new Error('No se pudo obtener el producto');
+                }
+
+                const producto = await response.json();
+
+                document.getElementById('productoId').value = producto.id;
+                document.getElementById('nombre').value = producto.nombre;
+                document.getElementById('precio').value = producto.precio;
+                document.getElementById('formTitle').textContent = 'Actualizar Producto';
+
+                const submitButton = document.querySelector('form button');
+                submitButton.textContent = 'Actualizar Producto';
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Hubo un problema');
+            }
+        }
+
+        async function actualizarProducto(event) {
+            event.preventDefault();  
+
+            const id = document.getElementById('productoId').value;
+            const nombre = document.getElementById('nombre').value;
+            const precio = parseFloat(document.getElementById('precio').value);
+
+            if (!nombre || precio < 0) {
+                alert('Ingresa un nombre y un precio válido.');
+                return;
+            }
+
+            try {
+                const productoActualizado = { id, nombre, precio };
+
+                const response = await fetch(`http://localhost:8080/product`, { 
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(productoActualizado),
+                });
+
+                if (!response.ok) {
+                    throw new Error('Error al actualizar');
+                }
+
+                document.getElementById('crearProductoForm').reset();
+                document.getElementById('formTitle').textContent = 'Crear Nuevo Producto';
+                document.querySelector('form button').textContent = 'Crear Producto';
+
+                cargarProductos();
+            } catch (error) {
+                console.error('Error al actualizar:', error);
+                alert('Hubo un problema');
+            }
+        }
+
+        document.getElementById('crearProductoForm').addEventListener('submit', function(event) {
+            if (document.getElementById('productoId').value) {
+                actualizarProducto(event);
+            } else {
+                crearProducto(event);
+            }
+        });
+
+        document.addEventListener('DOMContentLoaded', cargarProductos);
+    </script>
+</body>
+</html>
